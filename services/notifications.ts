@@ -1,79 +1,109 @@
 /**
  * Expo Notifications Service
+ * Complete notification system with permission flow, foreground/background handlers, and triggerNotification
  */
 
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Platform, Alert as RNAlert } from 'react-native';
 import { NOTIFICATION_CHANNELS } from '@/constants';
 import { Alert } from './store';
+import { navigationRef } from '@/navigation/AppNavigator';
 
-// Configure notification behavior
+// Notification types
+export type NotificationType =
+  | 'water_quality'
+  | 'flood'
+  | 'safety'
+  | 'waste'
+  | 'biodiversity'
+  | 'citizen_report'
+  | 'general';
+
+export interface NotificationData {
+  type: NotificationType;
+  alertId?: string;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
+  location?: {
+    latitude: number;
+    longitude: number;
+  };
+  [key: string]: any; // Allow additional custom data
+}
+
+// Configure notification behavior for foreground
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
+  handleNotification: async (notification) => {
+    const isCritical =
+      notification.request.content.data?.severity === 'critical' ||
+      notification.request.content.data?.type === 'flood';
+
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      priority: isCritical
+        ? Notifications.AndroidNotificationPriority.MAX
+        : Notifications.AndroidNotificationPriority.HIGH,
+    };
+  },
 });
 
 /**
- * Request notification permissions
+ * Request notification permissions with user-friendly flow
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
   try {
+    // Check current permission status
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
+    // If not granted, request permission
     if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+      // On iOS, check if we can ask
+      if (Platform.OS === 'ios') {
+        const { status: iosStatus } =
+          await Notifications.requestPermissionsAsync({
+            ios: {
+              allowAlert: true,
+              allowBadge: true,
+              allowSound: true,
+              allowAnnouncements: false,
+            },
+          });
+        finalStatus = iosStatus;
+      } else {
+        // Android
+        const { status: androidStatus } =
+          await Notifications.requestPermissionsAsync();
+        finalStatus = androidStatus;
+      }
     }
 
+    // If still not granted, show helpful message
     if (finalStatus !== 'granted') {
-      console.warn('Notification permissions not granted');
+      if (Platform.OS === 'ios') {
+        RNAlert.alert(
+          'Notifications Disabled',
+          'Please enable notifications in Settings to receive important alerts about river conditions.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                // On iOS, user needs to manually go to Settings
+                console.log('User should go to Settings > Smart River Watch > Notifications');
+              },
+            },
+          ]
+        );
+      }
+      console.warn('Notification permissions not granted:', finalStatus);
       return false;
     }
 
     // Configure notification channels for Android
     if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync(
-        NOTIFICATION_CHANNELS.WATER_QUALITY,
-        {
-          name: 'Water Quality Alerts',
-          importance: Notifications.AndroidImportance.HIGH,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#3B82F6',
-        }
-      );
-
-      await Notifications.setNotificationChannelAsync(
-        NOTIFICATION_CHANNELS.FLOOD,
-        {
-          name: 'Flood Alerts',
-          importance: Notifications.AndroidImportance.MAX,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#EF4444',
-          sound: 'default',
-        }
-      );
-
-      await Notifications.setNotificationChannelAsync(
-        NOTIFICATION_CHANNELS.SAFETY,
-        {
-          name: 'Safety Alerts',
-          importance: Notifications.AndroidImportance.HIGH,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#F59E0B',
-        }
-      );
-
-      await Notifications.setNotificationChannelAsync(
-        NOTIFICATION_CHANNELS.GENERAL,
-        {
-          name: 'General Notifications',
-          importance: Notifications.AndroidImportance.DEFAULT,
-        }
-      );
+      await setupAndroidChannels();
     }
 
     return true;
@@ -84,7 +114,204 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 }
 
 /**
- * Schedule a local notification
+ * Setup Android notification channels
+ */
+async function setupAndroidChannels(): Promise<void> {
+  await Notifications.setNotificationChannelAsync(
+    NOTIFICATION_CHANNELS.WATER_QUALITY,
+    {
+      name: 'Water Quality Alerts',
+      description: 'Notifications about water quality issues',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#3B82F6',
+      sound: 'default',
+      enableVibrate: true,
+      showBadge: true,
+    }
+  );
+
+  await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.FLOOD, {
+    name: 'Flood Alerts',
+    description: 'Critical flood warnings and alerts',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 500, 500, 500],
+    lightColor: '#EF4444',
+    sound: 'default',
+    enableVibrate: true,
+    showBadge: true,
+  });
+
+  await Notifications.setNotificationChannelAsync(
+    NOTIFICATION_CHANNELS.SAFETY,
+    {
+      name: 'Safety Alerts',
+      description: 'Safety warnings and alerts',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#F59E0B',
+      sound: 'default',
+      enableVibrate: true,
+      showBadge: true,
+    }
+  );
+
+  await Notifications.setNotificationChannelAsync(
+    NOTIFICATION_CHANNELS.GENERAL,
+    {
+      name: 'General Notifications',
+      description: 'General app notifications',
+      importance: Notifications.AndroidImportance.DEFAULT,
+      sound: 'default',
+      enableVibrate: false,
+      showBadge: true,
+    }
+  );
+}
+
+/**
+ * Check if notification permissions are granted
+ */
+export async function hasNotificationPermissions(): Promise<boolean> {
+  const { status } = await Notifications.getPermissionsAsync();
+  return status === 'granted';
+}
+
+/**
+ * Trigger a notification with type and data
+ * Main function for sending notifications throughout the app
+ */
+export async function triggerNotification(
+  type: NotificationType,
+  data: NotificationData,
+  options?: {
+    title?: string;
+    body?: string;
+    sound?: boolean;
+    priority?: 'min' | 'low' | 'default' | 'high' | 'max';
+  }
+): Promise<string | null> {
+  try {
+    // Check permissions first
+    const hasPermission = await hasNotificationPermissions();
+    if (!hasPermission) {
+      console.warn('Cannot send notification: permissions not granted');
+      return null;
+    }
+
+    // Get default title and body based on type
+    const { title, body } = getNotificationContent(type, data, options);
+
+    // Get channel ID for Android
+    const channelId = getChannelIdForType(type);
+
+    // Determine priority
+    const priority =
+      options?.priority ||
+      (data.severity === 'critical' || type === 'flood'
+        ? 'max'
+        : data.severity === 'high'
+        ? 'high'
+        : 'default');
+
+    // Schedule notification
+    const notificationId = await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body,
+        data: {
+          ...data,
+          timestamp: new Date().toISOString(),
+        },
+        sound: options?.sound !== false,
+        priority:
+          priority === 'max'
+            ? Notifications.AndroidNotificationPriority.MAX
+            : priority === 'high'
+            ? Notifications.AndroidNotificationPriority.HIGH
+            : Notifications.AndroidNotificationPriority.DEFAULT,
+      },
+      trigger: null, // Show immediately
+    });
+
+    console.log(`Notification triggered: ${type} - ${title}`);
+    return notificationId;
+  } catch (error) {
+    console.error('Error triggering notification:', error);
+    return null;
+  }
+}
+
+/**
+ * Get notification content based on type
+ */
+function getNotificationContent(
+  type: NotificationType,
+  data: NotificationData,
+  options?: { title?: string; body?: string }
+): { title: string; body: string } {
+  // Use custom title/body if provided
+  if (options?.title && options?.body) {
+    return { title: options.title, body: options.body };
+  }
+
+  // Default content based on type
+  switch (type) {
+    case 'water_quality':
+      return {
+        title: options?.title || 'Water Quality Alert',
+        body:
+          options?.body ||
+          data.severity === 'critical'
+            ? 'Critical water quality issue detected'
+            : 'Water quality alert - check details',
+      };
+    case 'flood':
+      return {
+        title: options?.title || '⚠️ Flood Alert',
+        body:
+          options?.body ||
+          data.severity === 'high'
+            ? 'High flood risk detected. Take immediate action.'
+            : 'Flood risk alert - monitor conditions',
+      };
+    case 'safety':
+      return {
+        title: options?.title || 'Safety Alert',
+        body:
+          options?.body ||
+          data.severity === 'critical'
+            ? 'Critical safety issue - avoid area'
+            : 'Safety alert - exercise caution',
+      };
+    case 'waste':
+      return {
+        title: options?.title || 'Waste Detection',
+        body:
+          options?.body ||
+          `Waste detected: ${data.severity || 'medium'} severity`,
+      };
+    case 'biodiversity':
+      return {
+        title: options?.title || 'Biodiversity Update',
+        body: options?.body || 'Biodiversity monitoring update available',
+      };
+    case 'citizen_report':
+      return {
+        title: options?.title || 'New Citizen Report',
+        body: options?.body || 'A new citizen report has been submitted',
+      };
+    case 'general':
+    default:
+      return {
+        title: options?.title || 'Smart River Watch',
+        body: options?.body || 'You have a new notification',
+      };
+  }
+}
+
+/**
+ * Schedule a local notification (legacy function, use triggerNotification instead)
  */
 export async function scheduleNotification(
   title: string,
@@ -129,11 +356,29 @@ export async function sendAlertNotification(alert: Alert): Promise<void> {
 }
 
 /**
- * Get notification channel ID for alert type
+ * Get notification channel ID for notification type
  */
-function getChannelIdForAlertType(
-  type: Alert['type']
-): string {
+function getChannelIdForType(type: NotificationType): string {
+  switch (type) {
+    case 'water_quality':
+      return NOTIFICATION_CHANNELS.WATER_QUALITY;
+    case 'flood':
+      return NOTIFICATION_CHANNELS.FLOOD;
+    case 'safety':
+      return NOTIFICATION_CHANNELS.SAFETY;
+    case 'waste':
+    case 'biodiversity':
+    case 'citizen_report':
+    case 'general':
+    default:
+      return NOTIFICATION_CHANNELS.GENERAL;
+  }
+}
+
+/**
+ * Get notification channel ID for alert type (legacy)
+ */
+function getChannelIdForAlertType(type: Alert['type']): string {
   switch (type) {
     case 'water_quality':
       return NOTIFICATION_CHANNELS.WATER_QUALITY;
@@ -188,5 +433,140 @@ export async function getAllScheduledNotifications(): Promise<
   Notifications.NotificationRequest[]
 > {
   return await Notifications.getAllScheduledNotificationsAsync();
+}
+
+/**
+ * Setup foreground notification handler
+ * Called when app is in foreground
+ */
+export function setupForegroundNotificationHandler(
+  onNotificationReceived?: (notification: Notifications.Notification) => void
+): Notifications.Subscription {
+  return Notifications.addNotificationReceivedListener((notification) => {
+    console.log('Foreground notification received:', notification);
+    
+    // Call custom handler if provided
+    if (onNotificationReceived) {
+      onNotificationReceived(notification);
+    }
+  });
+}
+
+/**
+ * Setup background notification handler
+ * Called when user taps on notification while app is in background
+ */
+export function setupBackgroundNotificationHandler(
+  onNotificationTapped?: (response: Notifications.NotificationResponse) => void
+): Notifications.Subscription {
+  return Notifications.addNotificationResponseReceivedListener((response) => {
+    console.log('Background notification tapped:', response);
+    
+    const notification = response.notification;
+    const data = notification.request.content.data as NotificationData;
+    
+    // Call custom handler if provided
+    if (onNotificationTapped) {
+      onNotificationTapped(response);
+    }
+    
+    // Handle navigation based on notification type
+    handleNotificationNavigation(data);
+  });
+}
+
+/**
+ * Handle navigation when notification is tapped
+ */
+function handleNotificationNavigation(data: NotificationData): void {
+  if (!navigationRef.current) {
+    console.warn('Navigation ref not available');
+    return;
+  }
+
+  // Navigate based on notification type
+  try {
+    switch (data.type) {
+      case 'flood':
+        navigationRef.current.navigate('MainTabs', {
+          screen: 'Monitor',
+          params: { screen: 'FloodAlerts' },
+        } as any);
+        break;
+      case 'water_quality':
+        navigationRef.current.navigate('MainTabs', {
+          screen: 'Monitor',
+          params: { screen: 'WaterQuality' },
+        } as any);
+        break;
+      case 'safety':
+        navigationRef.current.navigate('MainTabs', {
+          screen: 'Monitor',
+          params: { screen: 'SafetyAlerts' },
+        } as any);
+        break;
+      case 'waste':
+        navigationRef.current.navigate('MainTabs', {
+          screen: 'Monitor',
+          params: { screen: 'WasteFeed' },
+        } as any);
+        break;
+      case 'citizen_report':
+        navigationRef.current.navigate('MainTabs', {
+          screen: 'Reports',
+          params: { screen: 'MyReports' },
+        } as any);
+        break;
+      default:
+        // Navigate to dashboard for general notifications
+        navigationRef.current.navigate('MainTabs', {
+          screen: 'Home',
+        } as any);
+    }
+  } catch (error) {
+    console.error('Error navigating from notification:', error);
+  }
+}
+
+/**
+ * Setup all notification handlers (foreground + background)
+ * Call this once in App.tsx or root component
+ */
+export function setupNotificationHandlers(options?: {
+  onForegroundNotification?: (notification: Notifications.Notification) => void;
+  onBackgroundNotification?: (response: Notifications.NotificationResponse) => void;
+}): {
+  foregroundSubscription: Notifications.Subscription;
+  backgroundSubscription: Notifications.Subscription;
+} {
+  const foregroundSubscription = setupForegroundNotificationHandler(
+    options?.onForegroundNotification
+  );
+  
+  const backgroundSubscription = setupBackgroundNotificationHandler(
+    options?.onBackgroundNotification
+  );
+  
+  return {
+    foregroundSubscription,
+    backgroundSubscription,
+  };
+}
+
+/**
+ * Remove notification handlers
+ */
+export function removeNotificationHandlers(
+  subscriptions: {
+    foregroundSubscription: Notifications.Subscription;
+    backgroundSubscription: Notifications.Subscription;
+  }
+): void {
+  Notifications.removeNotificationSubscription(
+    subscriptions.foregroundSubscription
+  );
+  Notifications.removeNotificationSubscription(
+    subscriptions.backgroundSubscription
+  );
 }
 

@@ -4,12 +4,23 @@
  */
 
 import { db, storage, auth } from './firebase';
-import { collection, addDoc, updateDoc, doc, Timestamp } from 'firebase/firestore';
+import {
+  collection,
+  addDoc,
+  updateDoc,
+  doc,
+  Timestamp,
+  query,
+  where,
+  getDocs,
+  orderBy,
+} from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export interface CitizenReport {
   id?: string;
   userId: string;
+  userEmail?: string;
   issueType: string;
   description: string;
   location: {
@@ -17,7 +28,7 @@ export interface CitizenReport {
     longitude: number;
   };
   imageUrl?: string;
-  timestamp: Date;
+  timestamp: Date | any; // Can be Timestamp or Date
   status: 'pending' | 'reviewed' | 'resolved';
 }
 
@@ -89,6 +100,81 @@ export async function submitReport(
   } catch (error) {
     console.error('Error submitting report:', error);
     throw error;
+  }
+}
+
+/**
+ * Fetch user's reports from Firebase
+ */
+export async function getUserReports(): Promise<CitizenReport[]> {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('User must be authenticated to fetch reports');
+    }
+
+    const reportsQuery = query(
+      collection(db, 'reports'),
+      where('userId', '==', user.uid),
+      orderBy('timestamp', 'desc')
+    );
+
+    const querySnapshot = await getDocs(reportsQuery);
+    const reports: CitizenReport[] = [];
+
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      const timestamp = data.timestamp?.toDate
+        ? data.timestamp.toDate()
+        : data.timestamp || new Date();
+
+      reports.push({
+        id: doc.id,
+        userId: data.userId,
+        userEmail: data.userEmail,
+        issueType: data.issueType,
+        description: data.description,
+        location: data.location,
+        imageUrl: data.imageUrl,
+        timestamp,
+        status: data.status || 'pending',
+      });
+    });
+
+    return reports;
+  } catch (error) {
+    console.error('Error fetching user reports:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get status color
+ */
+export function getReportStatusColor(
+  status: CitizenReport['status']
+): string {
+  switch (status) {
+    case 'pending':
+      return '#FFCC00'; // Warning Yellow
+    case 'reviewed':
+      return '#1E90FF'; // Primary Blue
+    case 'resolved':
+      return '#32CD32'; // Eco Green
+  }
+}
+
+/**
+ * Get status label
+ */
+export function getReportStatusLabel(status: CitizenReport['status']): string {
+  switch (status) {
+    case 'pending':
+      return 'Pending';
+    case 'reviewed':
+      return 'In Review';
+    case 'resolved':
+      return 'Resolved';
   }
 }
 
