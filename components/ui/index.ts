@@ -22,4 +22,5 @@ export type { WasteSeverity } from './WasteCard';
 export { default as HotspotPopup } from './HotspotPopup';
 export { default as BoundingBox } from './BoundingBox';
 export type { BoundingBoxData } from './BoundingBox';
+export { default as WaterLevelGauge } from './WaterLevelGauge';
 
