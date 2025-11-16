@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { colors, gradients, shadows } from '@/theme';
+import AnimatedCounter from './AnimatedCounter';
 
 export type StatusType = 'good' | 'moderate' | 'bad';
 
@@ -21,6 +22,7 @@ interface StatCardProps extends ViewProps {
   trend?: 'up' | 'down' | 'stable';
   lastUpdated?: string;
   delay?: number;
+  animateValue?: boolean; // Use AnimatedCounter for numeric values
 }
 
 const statusConfig = {
@@ -56,10 +58,12 @@ export default function StatCard({
   trend,
   lastUpdated,
   delay = 0,
+  animateValue = false,
   style,
   ...props
 }: StatCardProps) {
   const config = statusConfig[status];
+  const isNumeric = typeof value === 'number';
 
   return (
     <Animated.View
@@ -92,7 +96,16 @@ export default function StatCard({
 
           {/* Value */}
           <View style={styles.valueContainer}>
-            <Text style={styles.value}>{value}</Text>
+            {isNumeric && animateValue ? (
+              <AnimatedCounter
+                value={value}
+                duration={1500}
+                style={styles.value}
+                formatter={(val) => val.toFixed(1)}
+              />
+            ) : (
+              <Text style={styles.value}>{value}</Text>
+            )}
             <Text style={styles.unit}>{unit}</Text>
           </View>
 

@@ -35,12 +35,12 @@ export default function GradientCard({
       style={[
         styles.container,
         { borderRadius },
-        shadows.lg,
+        shadows.xl, // Enhanced shadow
         style,
       ]}
       {...props}>
       <LinearGradient
-        colors={gradientConfig.colors}
+        colors={gradientConfig.colors as unknown as readonly [string, string, ...string[]]}
         start={gradientConfig.start}
         end={gradientConfig.end}
         style={[styles.gradient, { borderRadius }]}>
@@ -53,6 +53,8 @@ export default function GradientCard({
 const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)', // Subtle border
   },
   gradient: {
     flex: 1,

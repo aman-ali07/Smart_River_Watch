@@ -88,7 +88,7 @@ export default function FullscreenImageModal({
             />
           ) : (
             <LinearGradient
-              colors={gradients.water.flow.colors}
+              colors={gradients.water.flow.colors as unknown as readonly [string, string, ...string[]]}
               start={gradients.water.flow.start}
               end={gradients.water.flow.end}
               style={styles.placeholderImage}>

@@ -87,7 +87,7 @@ export default function WaterLevelGauge({
       ? gradients.primary.default.colors
       : percentage >= 20
       ? gradients.status.success.colors
-      : gradients.deepBlue.default.colors;
+      : gradients.water.deep.colors;
 
   return (
     <View style={[styles.container, { width: size, height: size }]}>
@@ -127,7 +127,7 @@ export default function WaterLevelGauge({
           scaleAnimatedStyle,
         ]}>
         <LinearGradient
-          colors={gradientColors}
+          colors={gradientColors as unknown as readonly [string, string, ...string[]]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[

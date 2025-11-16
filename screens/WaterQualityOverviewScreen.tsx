@@ -193,20 +193,28 @@ export default function WaterQualityOverviewScreen() {
 
         {/* Stat Cards Grid */}
         <View style={styles.cardsGrid}>
-          {statCards.map((card, index) => (
-            <StatCard
-              key={card.title}
-              title={card.title}
-              value={card.value}
-              unit={card.unit}
-              status={card.status}
-              icon={card.icon}
-              trend={card.trend}
-              lastUpdated={formatTime(lastUpdate)}
-              delay={index * 100}
-              style={styles.statCard}
-            />
-          ))}
+          {statCards.map((card, index) => {
+            const numericValue = typeof card.value === 'string' 
+              ? parseFloat(card.value.replace(/[^0-9.]/g, '')) 
+              : card.value;
+            const canAnimate = typeof numericValue === 'number' && !isNaN(numericValue);
+            
+            return (
+              <StatCard
+                key={card.title}
+                title={card.title}
+                value={canAnimate ? numericValue : card.value}
+                unit={card.unit}
+                status={card.status}
+                icon={card.icon}
+                trend={card.trend}
+                lastUpdated={formatTime(lastUpdate)}
+                delay={index * 100}
+                animateValue={canAnimate}
+                style={styles.statCard}
+              />
+            );
+          })}
         </View>
 
         {/* Info Card */}

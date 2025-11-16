@@ -1,4 +1,5 @@
 import './global.css';
+import { Platform } from 'react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef } from 'react';
@@ -6,14 +7,21 @@ import 'react-native-reanimated';
 import { NavigationContainer } from '@react-navigation/native';
 import AppNavigator, { navigationRef } from './navigation/AppNavigator';
 import { useColorScheme } from './hooks/use-color-scheme';
-import {
-  requestNotificationPermissions,
-  setupNotificationHandlers,
-  removeNotificationHandlers,
-} from './services/notifications';
 import { AuthProvider } from './contexts/AuthContext';
 import { useStartFakeDataEngine } from './hooks/useFakeDataUpdates';
 import { useStartAutoAlerts } from './hooks/useAutoAlerts';
+
+// Only import notification services on native platforms
+let requestNotificationPermissions: (() => Promise<void>) | null = null;
+let setupNotificationHandlers: any = null;
+let removeNotificationHandlers: any = null;
+
+if (Platform.OS !== 'web') {
+  const notifications = require('./services/notifications');
+  requestNotificationPermissions = notifications.requestNotificationPermissions;
+  setupNotificationHandlers = notifications.setupNotificationHandlers;
+  removeNotificationHandlers = notifications.removeNotificationHandlers;
+}
 
 // Component to start fake data engine
 function FakeDataProvider() {
@@ -27,7 +35,7 @@ function AutoAlertsProvider() {
   return null;
 }
 
-// Component to setup notification handlers
+// Component to setup notification handlers (native only)
 function NotificationProvider() {
   const subscriptionsRef = useRef<{
     foregroundSubscription: any;
@@ -35,23 +43,30 @@ function NotificationProvider() {
   } | null>(null);
 
   useEffect(() => {
-    // Setup notification handlers
-    subscriptionsRef.current = setupNotificationHandlers({
-      onForegroundNotification: (notification) => {
+    // Only setup on native platforms
+    if (Platform.OS === 'web' || !setupNotificationHandlers) {
+      return;
+    }
+
+    // Setup notification handlers (may return null on web)
+    const subscriptions = setupNotificationHandlers({
+      onForegroundNotification: (notification: any) => {
         // Handle foreground notifications
         console.log('Foreground notification:', notification);
         // You can show custom UI, update state, etc.
       },
-      onBackgroundNotification: (response) => {
+      onBackgroundNotification: (response: any) => {
         // Handle background notification taps
         console.log('Background notification tapped:', response);
         // Navigation will be handled by handleNotificationNavigation
       },
     });
 
+    subscriptionsRef.current = subscriptions;
+
     // Cleanup on unmount
     return () => {
-      if (subscriptionsRef.current) {
+      if (subscriptionsRef.current && removeNotificationHandlers) {
         removeNotificationHandlers(subscriptionsRef.current);
       }
     };
@@ -64,8 +79,10 @@ export default function App() {
   const colorScheme = useColorScheme();
 
   useEffect(() => {
-    // Request notification permissions on app start
-    requestNotificationPermissions();
+    // Request notification permissions on app start (native only)
+    if (requestNotificationPermissions && Platform.OS !== 'web') {
+      requestNotificationPermissions();
+    }
   }, []);
 
   return (

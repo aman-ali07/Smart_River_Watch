@@ -11,7 +11,7 @@ import { colors, gradients } from '@/theme';
 export default function LoadingScreen() {
   return (
     <LinearGradient
-      colors={gradients.water.flow.colors}
+      colors={gradients.water.flow.colors as unknown as readonly [string, string, ...string[]]}
       start={gradients.water.flow.start}
       end={gradients.water.flow.end}
       style={styles.container}>

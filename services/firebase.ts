@@ -23,31 +23,57 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-let storage: FirebaseStorage;
+let app: FirebaseApp | undefined;
+let auth: Auth | undefined;
+let db: Firestore | undefined;
+let storage: FirebaseStorage | undefined;
 let analytics: Analytics | null = null;
 
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
-  storage = getStorage(app);
-  
-  // Initialize Analytics only on web
-  if (Constants.platform?.web) {
-    analytics = getAnalytics(app);
+// Check if Firebase config is valid (not placeholder values)
+const isFirebaseConfigured = 
+  firebaseConfig.apiKey !== 'your-api-key' &&
+  firebaseConfig.projectId !== 'your-project-id';
+
+if (isFirebaseConfigured) {
+  try {
+    if (!getApps().length) {
+      app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+      storage = getStorage(app);
+      
+      // Initialize Analytics only on web (and only if config is valid)
+      if (Constants.platform?.web && firebaseConfig.measurementId) {
+        try {
+          analytics = getAnalytics(app);
+        } catch (analyticsError) {
+          console.warn('Firebase Analytics initialization failed:', analyticsError);
+          analytics = null;
+        }
+      }
+    } else {
+      app = getApps()[0];
+      auth = getAuth(app);
+      db = getFirestore(app);
+      storage = getStorage(app);
+      
+      if (Constants.platform?.web && firebaseConfig.measurementId) {
+        try {
+          analytics = getAnalytics(app);
+        } catch (analyticsError) {
+          console.warn('Firebase Analytics initialization failed:', analyticsError);
+          analytics = null;
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Firebase initialization error:', error);
+    console.warn('App will continue without Firebase features. Please configure Firebase for full functionality.');
+    // Don't throw - let the app continue without Firebase
   }
 } else {
-  app = getApps()[0];
-  auth = getAuth(app);
-  db = getFirestore(app);
-  storage = getStorage(app);
-  
-  if (Constants.platform?.web) {
-    analytics = getAnalytics(app);
-  }
+  console.warn('Firebase not configured. App will run without Firebase features.');
+  console.warn('To enable Firebase, add your config to environment variables.');
 }
 
 export { app, auth, db, storage, analytics };

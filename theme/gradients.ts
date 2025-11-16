@@ -129,11 +129,21 @@ export const gradients = {
     },
   },
 
-  // Card/Background Gradients
+  // Card/Background Gradients (improved)
   card: {
-    // Subtle card gradient
+    // Subtle card gradient (enhanced)
     subtle: {
-      colors: ['#FFFFFF', colors.gray[50]],
+      colors: ['rgba(255, 255, 255, 0.95)', 'rgba(255, 255, 255, 0.85)'],
+      start: { x: 0, y: 0 },
+      end: { x: 0, y: 1 },
+    },
+    // Premium card gradient
+    premium: {
+      colors: [
+        'rgba(255, 255, 255, 0.9)',
+        'rgba(240, 248, 255, 0.8)',
+        'rgba(230, 240, 255, 0.7)',
+      ],
       start: { x: 0, y: 0 },
       end: { x: 0, y: 1 },
     },
@@ -143,11 +153,25 @@ export const gradients = {
       start: { x: 0, y: 0 },
       end: { x: 0, y: 1 },
     },
-    // Primary card
+    // Primary card (enhanced)
     primary: {
-      colors: [colors.primary[50], colors.primary[100]],
+      colors: [
+        'rgba(30, 144, 255, 0.1)',
+        'rgba(30, 144, 255, 0.05)',
+        'rgba(255, 255, 255, 0.9)',
+      ],
       start: { x: 0, y: 0 },
       end: { x: 0, y: 1 },
+    },
+    // Glass card gradient
+    glass: {
+      colors: [
+        'rgba(255, 255, 255, 0.25)',
+        'rgba(255, 255, 255, 0.15)',
+        'rgba(255, 255, 255, 0.05)',
+      ],
+      start: { x: 0, y: 0 },
+      end: { x: 1, y: 1 },
     },
   },
 

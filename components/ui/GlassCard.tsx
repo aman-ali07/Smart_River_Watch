@@ -28,7 +28,7 @@ export default function GlassCard({
       style={[
         styles.container,
         { borderRadius },
-        shadows.md,
+        shadows.lg, // Improved shadow
         style,
       ]}
       {...props}>
@@ -45,9 +45,9 @@ export default function GlassCard({
 const styles = StyleSheet.create({
   container: {
     overflow: 'hidden',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)', // Enhanced opacity
+    borderWidth: 1.5, // Slightly thicker border
+    borderColor: 'rgba(255, 255, 255, 0.3)', // Enhanced border
   },
   blurView: {
     flex: 1,

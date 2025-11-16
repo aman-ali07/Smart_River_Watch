@@ -4,9 +4,9 @@
  */
 
 export { colors, type Colors } from './colors';
-export { typography, type Typography } from './typography';
-export { shadows, type Shadows } from './shadows';
 export { gradients, type Gradients } from './gradients';
+export { shadows, type Shadows } from './shadows';
+export { typography, type Typography } from './typography';
 
 // Spacing scale
 export const spacing = {
@@ -46,9 +46,9 @@ export const borderRadius = {
 
 // Complete theme object
 import { colors } from './colors';
-import { typography } from './typography';
-import { shadows } from './shadows';
 import { gradients } from './gradients';
+import { shadows } from './shadows';
+import { typography } from './typography';
 
 export const theme = {
   colors,

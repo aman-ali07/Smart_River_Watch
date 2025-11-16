@@ -39,7 +39,7 @@ export default function ChartContainer({
     } else if (variant === 'gradient') {
       return (
         <LinearGradient
-          colors={gradients.primary.light.colors}
+          colors={gradients.primary.light.colors as unknown as readonly [string, string, ...string[]]}
           start={gradients.primary.light.start}
           end={gradients.primary.light.end}
           style={styles.gradientContainer}>

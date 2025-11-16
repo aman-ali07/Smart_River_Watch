@@ -63,11 +63,11 @@ export default function DangerPopup({
         <View style={styles.severitySection}>
           <LinearGradient
             colors={
-              zone.severity === 'critical'
+              (zone.severity === 'critical'
                 ? gradients.status.alert.colors
                 : zone.severity === 'high'
                 ? gradients.status.alert.colors
-                : gradients.status.warning.colors
+                : gradients.status.warning.colors) as unknown as readonly [string, string, ...string[]]
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}

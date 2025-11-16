@@ -4,6 +4,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { SensorData } from '@/utils/sensorData';
 import type { WasteDetection } from '@/utils/wasteData';
@@ -195,7 +196,35 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'smart-river-watch-storage',
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() => 
+        Platform.OS === 'web' 
+          ? {
+              getItem: (name: string) => {
+                try {
+                  return Promise.resolve(localStorage.getItem(name));
+                } catch (e) {
+                  return Promise.resolve(null);
+                }
+              },
+              setItem: (name: string, value: string) => {
+                try {
+                  localStorage.setItem(name, value);
+                  return Promise.resolve();
+                } catch (e) {
+                  return Promise.resolve();
+                }
+              },
+              removeItem: (name: string) => {
+                try {
+                  localStorage.removeItem(name);
+                  return Promise.resolve();
+                } catch (e) {
+                  return Promise.resolve();
+                }
+              },
+            }
+          : AsyncStorage
+      ),
       partialize: (state) => ({
         user: state.user,
         isAuthenticated: state.isAuthenticated,

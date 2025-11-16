@@ -48,10 +48,18 @@ export default function BottomSheet({
 
   useEffect(() => {
     if (visible) {
-      translateY.value = withSpring(0, { damping: 20, stiffness: 90 });
-      opacity.value = withTiming(1, { duration: 300 });
+      // Smooth slide-up animation
+      translateY.value = withSpring(0, {
+        damping: 25,
+        stiffness: 100,
+        mass: 0.8,
+      });
+      opacity.value = withTiming(1, { duration: 400 });
     } else {
-      translateY.value = withTiming(SHEET_HEIGHT, { duration: 300 });
+      // Smooth slide-down animation
+      translateY.value = withTiming(SHEET_HEIGHT, {
+        duration: 350,
+      });
       opacity.value = withTiming(0, { duration: 300 });
     }
   }, [visible]);

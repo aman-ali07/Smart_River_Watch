@@ -82,11 +82,11 @@ export default function HotspotPopup({
         <View style={styles.densityScoreContainer}>
           <LinearGradient
             colors={
-              densityLevel === 'critical' || densityLevel === 'high'
+              (densityLevel === 'critical' || densityLevel === 'high'
                 ? gradients.status.alert.colors
                 : densityLevel === 'medium'
                 ? gradients.status.warning.colors
-                : gradients.status.success.colors
+                : gradients.status.success.colors) as unknown as readonly [string, string, ...string[]]
             }
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}

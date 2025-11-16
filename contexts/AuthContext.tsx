@@ -6,7 +6,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '@/services/firebase';
-import { signIn, register, resetPassword } from '@/services/auth';
+import { signIn, register, resetPassword, signInWithGoogle } from '@/services/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AuthContextType {
@@ -15,6 +15,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -33,38 +34,59 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Initialize auth state listener
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      try {
-        if (firebaseUser) {
-          // User is signed in
-          setUser(firebaseUser);
-          // Store auth state in AsyncStorage
-          await AsyncStorage.setItem(
-            AUTH_STORAGE_KEY,
-            JSON.stringify({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              emailVerified: firebaseUser.emailVerified,
-            })
-          );
-        } else {
-          // User is signed out
-          setUser(null);
-          // Clear auth state from AsyncStorage
-          await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
-        }
-      } catch (error) {
-        console.error('Error handling auth state:', error);
-      } finally {
+    let unsubscribe: (() => void) | null = null;
+    
+    try {
+      // Check if auth is available (Firebase might not be initialized)
+      if (!auth) {
+        console.warn('Firebase auth not available. App will continue without authentication.');
         setLoading(false);
-        if (initializing) {
-          setInitializing(false);
-        }
+        setInitializing(false);
+        return;
       }
-    });
+      
+      unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        try {
+          if (firebaseUser) {
+            // User is signed in
+            setUser(firebaseUser);
+            // Store auth state in AsyncStorage
+            await AsyncStorage.setItem(
+              AUTH_STORAGE_KEY,
+              JSON.stringify({
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                emailVerified: firebaseUser.emailVerified,
+              })
+            );
+          } else {
+            // User is signed out
+            setUser(null);
+            // Clear auth state from AsyncStorage
+            await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+          }
+        } catch (error) {
+          console.error('Error handling auth state:', error);
+        } finally {
+          setLoading(false);
+          if (initializing) {
+            setInitializing(false);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error setting up auth listener:', error);
+      // If Firebase fails, set loading to false so app can continue
+      setLoading(false);
+      setInitializing(false);
+    }
 
     // Cleanup subscription on unmount
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, [initializing]);
 
   // Restore auth state from AsyncStorage on mount
@@ -115,6 +137,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const loginWithGoogle = async (): Promise<void> => {
+    try {
+      setLoading(true);
+      await signInWithGoogle();
+      // User state will be updated by onAuthStateChanged listener
+    } catch (error: any) {
+      setLoading(false);
+      throw error;
+    }
+  };
+
   const logout = async (): Promise<void> => {
     try {
       setLoading(true);
@@ -136,12 +169,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     register: registerUser,
     forgotPassword,
+    loginWithGoogle,
     logout,
   };
 
   // Show loading screen while initializing
   if (initializing) {
-    return null; // Or return a loading component
+    // Import dynamically to avoid circular dependency
+    const LoadingScreen = require('@/components/LoadingScreen').default;
+    return <LoadingScreen />;
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

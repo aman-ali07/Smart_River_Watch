@@ -7,6 +7,8 @@ module.exports = function (api) {
     ],
     plugins: [
       "react-native-reanimated/plugin",
+      // Note: Module aliasing is handled by Metro resolver in metro.config.js
+      // This ensures platform-specific resolution (web vs native)
     ],
   };
 };

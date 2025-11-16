@@ -23,22 +23,22 @@ export const shadows = {
     elevation: 2, // Android
   },
 
-  // Medium shadow - Moderate elevation
+  // Medium shadow - Moderate elevation (improved)
   md: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4, // Android
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 5, // Android
   },
 
-  // Large shadow - High elevation
+  // Large shadow - High elevation (improved)
   lg: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8, // Android
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    elevation: 10, // Android
   },
 
   // Extra large shadow - Very high elevation

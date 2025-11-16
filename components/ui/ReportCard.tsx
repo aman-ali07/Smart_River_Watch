@@ -9,7 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { BlurView } from 'expo-blur';
-import { StatusChip } from '@/components/ui';
+import StatusChip from './StatusChip';
 import { colors, gradients, shadows } from '@/theme';
 import {
   CitizenReport,

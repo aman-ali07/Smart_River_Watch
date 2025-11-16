@@ -3,11 +3,27 @@
  * Complete notification system with permission flow, foreground/background handlers, and triggerNotification
  */
 
-import * as Notifications from 'expo-notifications';
 import { Platform, Alert as RNAlert } from 'react-native';
 import { NOTIFICATION_CHANNELS } from '@/constants';
 import { Alert } from './store';
 import { navigationRef } from '@/navigation/AppNavigator';
+
+// Conditionally import expo-notifications (not available on web)
+let Notifications: typeof import('expo-notifications') | null = null;
+
+if (Platform.OS !== 'web') {
+  try {
+    Notifications = require('expo-notifications');
+  } catch (e) {
+    // expo-notifications not available
+    console.warn('expo-notifications not available');
+  }
+}
+
+// Helper to check if notifications are available
+function isNotificationsAvailable(): boolean {
+  return Platform.OS !== 'web' && Notifications !== null;
+}
 
 // Notification types
 export type NotificationType =
@@ -30,31 +46,37 @@ export interface NotificationData {
   [key: string]: any; // Allow additional custom data
 }
 
-// Configure notification behavior for foreground
-Notifications.setNotificationHandler({
-  handleNotification: async (notification) => {
-    const isCritical =
-      notification.request.content.data?.severity === 'critical' ||
-      notification.request.content.data?.type === 'flood';
+// Configure notification behavior for foreground (native only)
+if (Platform.OS !== 'web' && Notifications) {
+  Notifications.setNotificationHandler({
+    handleNotification: async (notification) => {
+      const isCritical =
+        notification.request.content.data?.severity === 'critical' ||
+        notification.request.content.data?.type === 'flood';
 
-    return {
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      priority: isCritical
-        ? Notifications.AndroidNotificationPriority.MAX
-        : Notifications.AndroidNotificationPriority.HIGH,
-    };
-  },
-});
+      return {
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+        priority: isCritical
+          ? Notifications!.AndroidNotificationPriority.MAX
+          : Notifications!.AndroidNotificationPriority.HIGH,
+      };
+    },
+  });
+}
 
 /**
  * Request notification permissions with user-friendly flow
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
+  if (Platform.OS === 'web' || !Notifications) {
+    return false; // Notifications not supported on web
+  }
+
   try {
     // Check current permission status
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    const { status: existingStatus } = await Notifications!.getPermissionsAsync();
     let finalStatus = existingStatus;
 
     // If not granted, request permission
@@ -62,7 +84,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
       // On iOS, check if we can ask
       if (Platform.OS === 'ios') {
         const { status: iosStatus } =
-          await Notifications.requestPermissionsAsync({
+          await Notifications!.requestPermissionsAsync({
             ios: {
               allowAlert: true,
               allowBadge: true,
@@ -74,7 +96,7 @@ export async function requestNotificationPermissions(): Promise<boolean> {
       } else {
         // Android
         const { status: androidStatus } =
-          await Notifications.requestPermissionsAsync();
+          await Notifications!.requestPermissionsAsync();
         finalStatus = androidStatus;
       }
     }
@@ -117,12 +139,16 @@ export async function requestNotificationPermissions(): Promise<boolean> {
  * Setup Android notification channels
  */
 async function setupAndroidChannels(): Promise<void> {
-  await Notifications.setNotificationChannelAsync(
+  if (!isNotificationsAvailable()) {
+    return; // Notifications not supported on web
+  }
+
+  await Notifications!.setNotificationChannelAsync(
     NOTIFICATION_CHANNELS.WATER_QUALITY,
     {
       name: 'Water Quality Alerts',
       description: 'Notifications about water quality issues',
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: Notifications!.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#3B82F6',
       sound: 'default',
@@ -131,10 +157,10 @@ async function setupAndroidChannels(): Promise<void> {
     }
   );
 
-  await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.FLOOD, {
+  await Notifications!.setNotificationChannelAsync(NOTIFICATION_CHANNELS.FLOOD, {
     name: 'Flood Alerts',
     description: 'Critical flood warnings and alerts',
-    importance: Notifications.AndroidImportance.MAX,
+    importance: Notifications!.AndroidImportance.MAX,
     vibrationPattern: [0, 500, 500, 500],
     lightColor: '#EF4444',
     sound: 'default',
@@ -142,12 +168,12 @@ async function setupAndroidChannels(): Promise<void> {
     showBadge: true,
   });
 
-  await Notifications.setNotificationChannelAsync(
+  await Notifications!.setNotificationChannelAsync(
     NOTIFICATION_CHANNELS.SAFETY,
     {
       name: 'Safety Alerts',
       description: 'Safety warnings and alerts',
-      importance: Notifications.AndroidImportance.HIGH,
+      importance: Notifications!.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#F59E0B',
       sound: 'default',
@@ -156,12 +182,12 @@ async function setupAndroidChannels(): Promise<void> {
     }
   );
 
-  await Notifications.setNotificationChannelAsync(
+  await Notifications!.setNotificationChannelAsync(
     NOTIFICATION_CHANNELS.GENERAL,
     {
       name: 'General Notifications',
       description: 'General app notifications',
-      importance: Notifications.AndroidImportance.DEFAULT,
+      importance: Notifications!.AndroidImportance.DEFAULT,
       sound: 'default',
       enableVibrate: false,
       showBadge: true,
@@ -173,7 +199,11 @@ async function setupAndroidChannels(): Promise<void> {
  * Check if notification permissions are granted
  */
 export async function hasNotificationPermissions(): Promise<boolean> {
-  const { status } = await Notifications.getPermissionsAsync();
+  if (!isNotificationsAvailable()) {
+    return false; // Notifications not supported on web
+  }
+
+  const { status } = await Notifications!.getPermissionsAsync();
   return status === 'granted';
 }
 
@@ -191,6 +221,10 @@ export async function triggerNotification(
     priority?: 'min' | 'low' | 'default' | 'high' | 'max';
   }
 ): Promise<string | null> {
+  if (!isNotificationsAvailable()) {
+    return null; // Notifications not supported on web
+  }
+
   try {
     // Check permissions first
     const hasPermission = await hasNotificationPermissions();
@@ -215,7 +249,7 @@ export async function triggerNotification(
         : 'default');
 
     // Schedule notification
-    const notificationId = await Notifications.scheduleNotificationAsync({
+    const notificationId = await Notifications!.scheduleNotificationAsync({
       content: {
         title,
         body,
@@ -226,10 +260,10 @@ export async function triggerNotification(
         sound: options?.sound !== false,
         priority:
           priority === 'max'
-            ? Notifications.AndroidNotificationPriority.MAX
+            ? Notifications!.AndroidNotificationPriority.MAX
             : priority === 'high'
-            ? Notifications.AndroidNotificationPriority.HIGH
-            : Notifications.AndroidNotificationPriority.DEFAULT,
+            ? Notifications!.AndroidNotificationPriority.HIGH
+            : Notifications!.AndroidNotificationPriority.DEFAULT,
       },
       trigger: null, // Show immediately
     });
@@ -319,8 +353,12 @@ export async function scheduleNotification(
   data?: any,
   channelId?: string
 ): Promise<string> {
+  if (!isNotificationsAvailable()) {
+    throw new Error('Notifications not supported on web');
+  }
+
   try {
-    const notificationId = await Notifications.scheduleNotificationAsync({
+    const notificationId = await Notifications!.scheduleNotificationAsync({
       content: {
         title,
         body,
@@ -395,14 +433,18 @@ function getChannelIdForAlertType(type: Alert['type']): string {
  * Get Expo Push Token for remote notifications
  */
 export async function getExpoPushToken(): Promise<string | null> {
+  if (!isNotificationsAvailable()) {
+    return null; // Notifications not supported on web
+  }
+
   try {
     const hasPermission = await requestNotificationPermissions();
     if (!hasPermission) {
       return null;
     }
 
-    const tokenData = await Notifications.getExpoPushTokenAsync({
-      projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
+    const tokenData = await Notifications!.getExpoPushTokenAsync({
+      projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
     });
 
     return tokenData.data;
@@ -416,23 +458,33 @@ export async function getExpoPushToken(): Promise<string | null> {
  * Cancel a notification
  */
 export async function cancelNotification(notificationId: string): Promise<void> {
-  await Notifications.cancelScheduledNotificationAsync(notificationId);
+  if (!isNotificationsAvailable()) {
+    return; // Notifications not supported on web
+  }
+
+  await Notifications!.cancelScheduledNotificationAsync(notificationId);
 }
 
 /**
  * Cancel all notifications
  */
 export async function cancelAllNotifications(): Promise<void> {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  if (!isNotificationsAvailable()) {
+    return; // Notifications not supported on web
+  }
+
+  await Notifications!.cancelAllScheduledNotificationsAsync();
 }
 
 /**
  * Get all scheduled notifications
  */
-export async function getAllScheduledNotifications(): Promise<
-  Notifications.NotificationRequest[]
-> {
-  return await Notifications.getAllScheduledNotificationsAsync();
+export async function getAllScheduledNotifications(): Promise<any[]> {
+  if (!isNotificationsAvailable()) {
+    return []; // Notifications not supported on web
+  }
+
+  return await Notifications!.getAllScheduledNotificationsAsync();
 }
 
 /**
@@ -440,9 +492,13 @@ export async function getAllScheduledNotifications(): Promise<
  * Called when app is in foreground
  */
 export function setupForegroundNotificationHandler(
-  onNotificationReceived?: (notification: Notifications.Notification) => void
-): Notifications.Subscription {
-  return Notifications.addNotificationReceivedListener((notification) => {
+  onNotificationReceived?: (notification: any) => void
+): any {
+  if (!isNotificationsAvailable()) {
+    return null; // Notifications not supported on web
+  }
+
+  return Notifications!.addNotificationReceivedListener((notification) => {
     console.log('Foreground notification received:', notification);
     
     // Call custom handler if provided
@@ -457,9 +513,13 @@ export function setupForegroundNotificationHandler(
  * Called when user taps on notification while app is in background
  */
 export function setupBackgroundNotificationHandler(
-  onNotificationTapped?: (response: Notifications.NotificationResponse) => void
-): Notifications.Subscription {
-  return Notifications.addNotificationResponseReceivedListener((response) => {
+  onNotificationTapped?: (response: any) => void
+): any {
+  if (!isNotificationsAvailable()) {
+    return null; // Notifications not supported on web
+  }
+
+  return Notifications!.addNotificationResponseReceivedListener((response) => {
     console.log('Background notification tapped:', response);
     
     const notification = response.notification;
@@ -533,12 +593,19 @@ function handleNotificationNavigation(data: NotificationData): void {
  * Call this once in App.tsx or root component
  */
 export function setupNotificationHandlers(options?: {
-  onForegroundNotification?: (notification: Notifications.Notification) => void;
-  onBackgroundNotification?: (response: Notifications.NotificationResponse) => void;
+  onForegroundNotification?: (notification: any) => void;
+  onBackgroundNotification?: (response: any) => void;
 }): {
-  foregroundSubscription: Notifications.Subscription;
-  backgroundSubscription: Notifications.Subscription;
+  foregroundSubscription: any;
+  backgroundSubscription: any;
 } {
+  if (!isNotificationsAvailable()) {
+    return {
+      foregroundSubscription: null,
+      backgroundSubscription: null,
+    };
+  }
+
   const foregroundSubscription = setupForegroundNotificationHandler(
     options?.onForegroundNotification
   );
@@ -558,15 +625,23 @@ export function setupNotificationHandlers(options?: {
  */
 export function removeNotificationHandlers(
   subscriptions: {
-    foregroundSubscription: Notifications.Subscription;
-    backgroundSubscription: Notifications.Subscription;
+    foregroundSubscription: any;
+    backgroundSubscription: any;
   }
 ): void {
-  Notifications.removeNotificationSubscription(
-    subscriptions.foregroundSubscription
-  );
-  Notifications.removeNotificationSubscription(
-    subscriptions.backgroundSubscription
-  );
+  if (!isNotificationsAvailable()) {
+    return; // Notifications not supported on web
+  }
+
+  if (subscriptions.foregroundSubscription) {
+    Notifications!.removeNotificationSubscription(
+      subscriptions.foregroundSubscription
+    );
+  }
+  if (subscriptions.backgroundSubscription) {
+    Notifications!.removeNotificationSubscription(
+      subscriptions.backgroundSubscription
+    );
+  }
 }
 

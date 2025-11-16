@@ -12,7 +12,7 @@ import Animated, {
   withTiming,
   withSpring,
 } from 'react-native-reanimated';
-import { StatusChip } from '@/components/ui';
+import StatusChip from './StatusChip';
 import GlassCard from './GlassCard';
 import { colors } from '@/theme';
 import {

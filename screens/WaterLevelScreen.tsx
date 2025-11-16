@@ -3,28 +3,28 @@
  * Circular animated gauge showing water level with rainfall card
  */
 
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeInUp } from 'react-native-reanimated';
-import { BlurView } from 'expo-blur';
-import { WaterLevelGauge, GlassCard } from '@/components/ui';
+import { GlassCard, WaterLevelGauge } from '@/components/ui';
 import { colors, gradients, shadows } from '@/theme';
 import {
-  generateWaterLevelData,
   generateRainfallData,
-  getWaterLevelStatus,
+  generateWaterLevelData,
   getStatusColor,
-  type WaterLevelData,
+  getWaterLevelStatus,
   type RainfallData,
+  type WaterLevelData,
 } from '@/utils/waterLevel';
+import { Ionicons } from '@expo/vector-icons';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useState } from 'react';
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function WaterLevelScreen() {
   const [waterLevel] = useState<WaterLevelData>(generateWaterLevelData());
@@ -37,7 +37,7 @@ export default function WaterLevelScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <LinearGradient
-        colors={gradients.water.flow.colors}
+        colors={gradients.water.flow.colors as unknown as readonly [string, string, ...string[]]}
         start={gradients.water.flow.start}
         end={gradients.water.flow.end}
         style={StyleSheet.absoluteFillObject}

@@ -6,6 +6,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  signInWithPopup,
+  GoogleAuthProvider,
   User,
   UserCredential,
 } from 'firebase/auth';
@@ -18,6 +20,9 @@ export async function signIn(
   email: string,
   password: string
 ): Promise<UserCredential> {
+  if (!auth) {
+    throw new Error('Firebase auth is not initialized');
+  }
   try {
     const userCredential = await signInWithEmailAndPassword(
       auth,
@@ -37,6 +42,9 @@ export async function register(
   email: string,
   password: string
 ): Promise<UserCredential> {
+  if (!auth) {
+    throw new Error('Firebase auth is not initialized');
+  }
   try {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
@@ -53,9 +61,36 @@ export async function register(
  * Send password reset email
  */
 export async function resetPassword(email: string): Promise<void> {
+  if (!auth) {
+    throw new Error('Firebase auth is not initialized');
+  }
   try {
     await sendPasswordResetEmail(auth, email);
   } catch (error: any) {
+    throw new Error(getAuthErrorMessage(error.code));
+  }
+}
+
+/**
+ * Sign in with Google using popup
+ */
+export async function signInWithGoogle(): Promise<UserCredential> {
+  if (!auth) {
+    throw new Error('Firebase auth is not initialized');
+  }
+  try {
+    const provider = new GoogleAuthProvider();
+    // Add additional scopes if needed
+    provider.addScope('profile');
+    provider.addScope('email');
+    
+    const userCredential = await signInWithPopup(auth, provider);
+    return userCredential;
+  } catch (error: any) {
+    // Handle popup closed by user
+    if (error.code === 'auth/popup-closed-by-user') {
+      throw new Error('Sign-in popup was closed');
+    }
     throw new Error(getAuthErrorMessage(error.code));
   }
 }
